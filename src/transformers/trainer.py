@@ -26,7 +26,9 @@ import time
 import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
-from torch.optim.swa_utils import AveragedModel, SWALR
+
+from torch.optim.swa_utils import SWALR, AveragedModel
+
 
 # Integrations must be imported before ML frameworks:
 from .integrations import (  # isort: split
@@ -241,7 +243,11 @@ class Trainer:
         model_init: Callable[[], PreTrainedModel] = None,
         compute_metrics: Optional[Callable[[EvalPrediction], Dict]] = None,
         callbacks: Optional[List[TrainerCallback]] = None,
-        optimizers: Tuple[torch.optim.Optimizer, torch.optim.lr_scheduler.LambdaLR, torch.optim.swa_utils.SWALR] = (None, None, None),
+        optimizers: Tuple[torch.optim.Optimizer, torch.optim.lr_scheduler.LambdaLR, torch.optim.swa_utils.SWALR] = (
+            None,
+            None,
+            None,
+        ),
     ):
         if args is None:
             output_dir = "tmp_trainer"

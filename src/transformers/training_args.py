@@ -410,6 +410,14 @@ class TrainingArguments:
         default=0.0, metadata={"help": "The label smoothing epsilon to apply (zero means no label smoothing)."}
     )
     adafactor: bool = field(default=False, metadata={"help": "Whether or not to replace Adam by Adafactor."})
+    swa_start: int = field(
+        default=0,
+        metadata={"help": "If >=0, uses swa scheduler after number of epochs determined by swa_start."},
+    )
+    swa_lr: int = field(
+        default=0,
+        metadata={"help": "If >=0, learning rate that is used by swa scheduler."},
+    )
 
     def __post_init__(self):
         if self.disable_tqdm is None:
@@ -430,6 +438,10 @@ class TrainingArguments:
 
         if is_torch_available() and self.device.type != "cuda" and self.fp16:
             raise ValueError("Mixed precision training with AMP or APEX (`--fp16`) can only be used on CUDA devices.")
+        if bool(self.swa_lr) != bool(self.swa_start):
+            raise ValueError("swa_lr and swa_start must be specified at the same time to use SWA scheduler or must be "
+                             "0 to disable swa scheduler.")
+
 
     def __repr__(self):
         # We override the default repr to remove deprecated arguments from the repr. This method should be removed once

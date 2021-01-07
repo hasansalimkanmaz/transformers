@@ -580,7 +580,9 @@ class Trainer:
             )
 
         if self.args.swa_start and self.args.swa_lr:
-            self.swa_scheduler = SWALR(self.optimizer, swa_lr=self.args.swa_lr)
+            self.swa_scheduler = SWALR(
+                self.optimizer, swa_lr=self.args.swa_lr, anneal_epochs=self.args.swa_annealing_epochs
+            )
 
     def num_examples(self, dataloader: DataLoader) -> int:
         """

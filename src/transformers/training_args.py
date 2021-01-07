@@ -414,9 +414,13 @@ class TrainingArguments:
         default=0,
         metadata={"help": "If >=0, uses swa scheduler after number of epochs determined by swa_start."},
     )
-    swa_lr: int = field(
+    swa_lr: float = field(
         default=0,
-        metadata={"help": "If >=0, learning rate that is used by swa scheduler."},
+        metadata={"help": "learning rate that is used by swa scheduler."},
+    )
+    swa_annealing_epochs: int = field(
+        default=0,
+        metadata={"help": "number of epochs in the annealing phase for swa scheduler."},
     )
 
     def __post_init__(self):

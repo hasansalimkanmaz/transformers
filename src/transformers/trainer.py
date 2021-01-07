@@ -26,7 +26,7 @@ import time
 import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
-
+from torch.optim.swa_utils import AveragedModel, SWALR
 
 # Integrations must be imported before ML frameworks:
 from .integrations import (  # isort: split
@@ -241,7 +241,7 @@ class Trainer:
         model_init: Callable[[], PreTrainedModel] = None,
         compute_metrics: Optional[Callable[[EvalPrediction], Dict]] = None,
         callbacks: Optional[List[TrainerCallback]] = None,
-        optimizers: Tuple[torch.optim.Optimizer, torch.optim.lr_scheduler.LambdaLR] = (None, None),
+        optimizers: Tuple[torch.optim.Optimizer, torch.optim.lr_scheduler.LambdaLR, torch.optim.swa_utils.SWALR] = (None, None, None),
     ):
         if args is None:
             output_dir = "tmp_trainer"
@@ -282,7 +282,7 @@ class Trainer:
         self.model = model
 
         self.compute_metrics = compute_metrics
-        self.optimizer, self.lr_scheduler = optimizers
+        self.optimizer, self.lr_scheduler, self.swa_scheduler = optimizers
         if model_init is not None and (self.optimizer is not None or self.lr_scheduler is not None):
             raise RuntimeError(
                 "Passing a `model_init` is incompatible with providing the `optimizers` argument."
@@ -573,6 +573,9 @@ class Trainer:
                 num_training_steps=num_training_steps,
             )
 
+        if self.args.swa_start and self.args.swa_lr:
+            self.swa_scheduler = SWALR(self.optimizer, swa_lr=self.args.swa_lr)
+
     def num_examples(self, dataloader: DataLoader) -> int:
         """
         Helper to get number of samples in a :class:`~torch.utils.data.DataLoader` by accessing its dataset.
@@ -815,6 +818,7 @@ class Trainer:
         self._total_loss_scalar = 0.0
         self._globalstep_last_logged = 0
         self._total_flos = self.state.total_flos
+        self.swa_model = AveragedModel(model)
         model.zero_grad()
 
         self.control = self.callback_handler.on_train_begin(self.args, self.state, self.control)
@@ -893,7 +897,12 @@ class Trainer:
                     else:
                         self.optimizer.step()
 
-                    self.lr_scheduler.step()
+                    if self.swa_scheduler and epoch > self.args.swa_start:
+                        self.swa_model.update_parameters(model)
+                        self.swa_scheduler.step()
+                    else:
+                        self.lr_scheduler.step()
+
                     model.zero_grad()
                     self.state.global_step += 1
                     self.state.epoch = epoch + (step + 1) / steps_in_epoch
@@ -935,6 +944,9 @@ class Trainer:
             else:
                 state_dict = torch.load(os.path.join(self.state.best_model_checkpoint, WEIGHTS_NAME))
                 self.model.load_state_dict(state_dict)
+        if self.swa_scheduler:
+            torch.optim.swa_utils.update_bn(train_dataloader, self.swa_model)
+            self.model = self.swa_model
 
         metrics = speed_metrics("train", start_time, self.state.max_steps)
         if self._total_flos is not None:

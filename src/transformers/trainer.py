@@ -954,7 +954,7 @@ class Trainer:
                 self.model.load_state_dict(state_dict)
         if self.swa_scheduler:
             torch.optim.swa_utils.update_bn(train_dataloader, self.swa_model)
-            self.model = self.swa_model
+            self.model = self.swa_model.module
 
         metrics = speed_metrics("train", start_time, self.state.max_steps)
         if self._total_flos is not None:
@@ -1317,9 +1317,6 @@ class Trainer:
         output_dir = output_dir if output_dir is not None else self.args.output_dir
         os.makedirs(output_dir, exist_ok=True)
 
-        # If SWA is used during training, model is encapsulated with swa_model. In case this, Take the model out here.
-        if self.swa_model and hasattr(self.model, "module") and not not isinstance(self.model.module, PreTrainedModel):
-            self.model = self.model.module
         logger.info("Saving model checkpoint to %s", output_dir)
         # Save a trained model and configuration using `save_pretrained()`.
         # They can then be reloaded using `from_pretrained()`

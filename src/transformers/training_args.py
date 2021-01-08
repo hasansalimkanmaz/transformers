@@ -445,7 +445,7 @@ class TrainingArguments:
         if bool(self.swa_lr) != bool(self.swa_start):
             raise ValueError(
                 "swa_lr and swa_start must be specified at the same time to use SWA scheduler or must be "
-                "0 to disable swa scheduler."
+                f"0 to disable swa scheduler. Provided: swa_lr={self.swa_lr}, swa_start={self.swa_start}"
             )
 
     def __repr__(self):

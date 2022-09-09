@@ -170,7 +170,7 @@ def postprocess_qa_predictions(
         if (
             version_2_with_negative
             and min_null_prediction is not None
-            and not any(p["offsets"] == (0, 0) for p in predictions)
+            and all(p["offsets"] != (0, 0) for p in predictions)
         ):
             predictions.append(min_null_prediction)
 
@@ -344,8 +344,8 @@ def postprocess_qa_predictions_with_beam_search(
 
             # Go through all possibilities for the `n_start_top`/`n_end_top` greater start and end logits.
             for i in range(start_n_top):
+                start_index = int(start_indexes[i])
                 for j in range(end_n_top):
-                    start_index = int(start_indexes[i])
                     j_index = i * end_n_top + j
                     end_index = int(end_indexes[j_index])
                     # Don't consider out-of-scope answers (last part of the test should be unnecessary because of the

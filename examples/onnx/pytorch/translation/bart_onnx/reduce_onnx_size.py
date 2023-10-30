@@ -39,8 +39,8 @@ def graph_replace_input_with(graph_proto, name, new_name):
 
 
 def remove_dup_initializers_from_model(model, model_without_ext, ind_to_replace):
-    inits_with_data = [i for i in model.graph.initializer]
-    inits = [i for i in model_without_ext.graph.initializer]
+    inits_with_data = list(model.graph.initializer)
+    inits = list(model_without_ext.graph.initializer)
     for i, ref_i in ind_to_replace:
         assert inits_with_data[i].name == inits[i].name
         assert inits_with_data[ref_i].name == inits[ref_i].name
@@ -61,7 +61,7 @@ def remove_dup_initializers(onnx_file_path):
 
     model = onnx.load(os.path.join(model_file_folder, model_file_name))
 
-    inits = [i for i in model.graph.initializer]
+    inits = list(model.graph.initializer)
 
     dup_set = set()
     dup_map = {}
@@ -82,11 +82,9 @@ def remove_dup_initializers(onnx_file_path):
 
                 dtype = inits[j].data_type
                 mem_size = numpy.prod(inits[j].dims)
-                if dtype == 1:
+                if dtype in [1, 6]:
                     mem_size *= 4
-                elif dtype == 6:
-                    mem_size *= 4
-                elif dtype == 7 or dtype == 11:
+                elif dtype in [7, 11]:
                     mem_size *= 8
                 else:
                     print("unexpected data type: ", dtype)
@@ -106,7 +104,7 @@ def remove_dup_initializers(onnx_file_path):
     ind_to_replace = sorted(ind_to_replace, key=lambda x: x[0])
     remove_dup_initializers_from_model(model, model, ind_to_replace)
 
-    optimized_model_file_name = "optimized_" + model_file_name
+    optimized_model_file_name = f"optimized_{model_file_name}"
     new_model = os.path.join(model_file_folder, optimized_model_file_name)
     onnx.save(model, new_model)
 

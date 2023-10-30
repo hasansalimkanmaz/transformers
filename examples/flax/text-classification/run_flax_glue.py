@@ -137,16 +137,14 @@ def parse_args():
     parser.add_argument("--hub_token", type=str, help="The token to use to push to the Model Hub.")
     args = parser.parse_args()
 
-    # Sanity checks
     if args.task_name is None and args.train_file is None and args.validation_file is None:
         raise ValueError("Need either a task name or a training/validation file.")
-    else:
-        if args.train_file is not None:
-            extension = args.train_file.split(".")[-1]
-            assert extension in ["csv", "json"], "`train_file` should be a csv or a json file."
-        if args.validation_file is not None:
-            extension = args.validation_file.split(".")[-1]
-            assert extension in ["csv", "json"], "`validation_file` should be a csv or a json file."
+    if args.train_file is not None:
+        extension = args.train_file.split(".")[-1]
+        assert extension in ["csv", "json"], "`train_file` should be a csv or a json file."
+    if args.validation_file is not None:
+        extension = args.validation_file.split(".")[-1]
+        assert extension in ["csv", "json"], "`validation_file` should be a csv or a json file."
 
     if args.push_to_hub:
         assert args.output_dir is not None, "Need an `output_dir` to create a repo when `--push_to_hub` is passed."
@@ -230,8 +228,9 @@ def create_learning_rate_fn(
     decay_fn = optax.linear_schedule(
         init_value=learning_rate, end_value=0, transition_steps=num_train_steps - num_warmup_steps
     )
-    schedule_fn = optax.join_schedules(schedules=[warmup_fn, decay_fn], boundaries=[num_warmup_steps])
-    return schedule_fn
+    return optax.join_schedules(
+        schedules=[warmup_fn, decay_fn], boundaries=[num_warmup_steps]
+    )
 
 
 def glue_train_data_collator(rng: PRNGKey, dataset: Dataset, batch_size: int):
@@ -244,9 +243,7 @@ def glue_train_data_collator(rng: PRNGKey, dataset: Dataset, batch_size: int):
     for perm in perms:
         batch = dataset[perm]
         batch = {k: jnp.array(v) for k, v in batch.items()}
-        batch = shard(batch)
-
-        yield batch
+        yield shard(batch)
 
 
 def glue_eval_data_collator(dataset: Dataset, batch_size: int):
@@ -254,9 +251,7 @@ def glue_eval_data_collator(dataset: Dataset, batch_size: int):
     for i in range(len(dataset) // batch_size):
         batch = dataset[i * batch_size : (i + 1) * batch_size]
         batch = {k: jnp.array(v) for k, v in batch.items()}
-        batch = shard(batch)
-
-        yield batch
+        yield shard(batch)
 
 
 def main():

@@ -11,10 +11,8 @@ from transformers.generation_utils import GenerationMixin
 def flatten_list(past):
     values = []
     if past is not None:
-        for i, p in enumerate(past):
-            for j, q in enumerate(p):
-                values.append(q)
-
+        for p in past:
+            values.extend(iter(p))
     return values
 
 
@@ -301,7 +299,7 @@ class BARTGenerator(torch.nn.Module, GenerationMixin):
 
     def _decoder_forward(self, input_ids, encoder_output, attention_mask, past: List[torch.Tensor]):
         # Update here to use different decoder for different values of past.
-        if past is None or len(past) == 0:
+        if past is None or not past:
             decoder_output, past = self.decoder_no_past(
                 input_ids=input_ids, encoder_state=encoder_output, attention_mask=attention_mask
             )
@@ -364,11 +362,14 @@ class BARTGenerator(torch.nn.Module, GenerationMixin):
         bos_token_id: Optional[int] = None,
     ) -> torch.LongTensor:
 
-        decoder_input_ids = (
-            torch.ones((input_ids.shape[0], 1), dtype=input_ids.dtype, device=input_ids.device)
+        return (
+            torch.ones(
+                (input_ids.shape[0], 1),
+                dtype=input_ids.dtype,
+                device=input_ids.device,
+            )
             * decoder_start_token_id
         )
-        return decoder_input_ids
 
     def forward(self, input_ids, attention_mask, max_length, decoder_start_token_id):
         pad_token_id = self.config.pad_token_id
@@ -503,8 +504,7 @@ class BeamSearchScorerTS(torch.nn.Module):
             return True
         else:
             cur_score = best_sum_logprobs / cur_len ** self.length_penalty
-            ret = self._beam_hyps_worst_scores[hypo_idx].item() >= cur_score
-            return ret
+            return self._beam_hyps_worst_scores[hypo_idx].item() >= cur_score
 
     def process(
         self,
@@ -528,7 +528,7 @@ class BeamSearchScorerTS(torch.nn.Module):
             if self._done[batch_idx]:
                 assert (
                     self.hypo_len(batch_idx) >= self.num_beams
-                ), "Batch can only be done if at least {} beams have been generated".format(self.num_beams)
+                ), f"Batch can only be done if at least {self.num_beams} beams have been generated"
                 assert (
                     eos_token_id is not None and pad_token_id is not None
                 ), "generated beams >= num_beams -> eos_token_id and pad_token have to be defined"
@@ -681,12 +681,7 @@ class BARTBeamSearchGenerator(BARTGenerator):
         return scores.masked_fill(mask, -float("inf"))
 
     def _reorder_cache(self, past: List[torch.Tensor], beam_idx):
-        # if decoder past is not included in output
-        # speedy decoding is disabled and no need to reorder
-        reordered_decoder_past = []
-        for state in past:
-            reordered_decoder_past.append(state.index_select(0, beam_idx))
-        return reordered_decoder_past
+        return [state.index_select(0, beam_idx) for state in past]
 
     def beam_search(
         self, input_ids, encoder_output, attention_mask, num_beams, max_length, pad_token_id: int, eos_token_id: int

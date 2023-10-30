@@ -116,7 +116,7 @@ def main():
         training_args.local_rank,
         training_args.device,
         training_args.n_gpu,
-        bool(training_args.local_rank != -1),
+        training_args.local_rank != -1,
         training_args.fp16,
     )
     # Set the verbosity to info of the Transformers logger (on main process only):
@@ -134,7 +134,7 @@ def main():
         label_list = processor.get_labels()
         num_labels = len(label_list)
     except KeyError:
-        raise ValueError("Task not found: %s" % (data_args.task_name))
+        raise ValueError(f"Task not found: {data_args.task_name}")
 
     # Load pretrained model and tokenizer
     #
@@ -154,7 +154,7 @@ def main():
     )
     model = AutoModelForMultipleChoice.from_pretrained(
         model_args.model_name_or_path,
-        from_tf=bool(".ckpt" in model_args.model_name_or_path),
+        from_tf=".ckpt" in model_args.model_name_or_path,
         config=config,
         cache_dir=model_args.cache_dir,
     )

@@ -83,9 +83,7 @@ def parse_args():
     )
     parser.add_argument("--output_file_path", type=str, default=None, help="Where to store the final ONNX file.")
 
-    args = parser.parse_args()
-
-    return args
+    return parser.parse_args()
 
 
 def load_model_tokenizer(model_name, device="cpu"):
@@ -110,17 +108,17 @@ def export_and_validate_model(model, tokenizer, onnx_file_path, num_beams, max_l
         ARTICLE_TO_SUMMARIZE = "My friends are cool but they eat too many carbs."
         inputs = tokenizer([ARTICLE_TO_SUMMARIZE], max_length=1024, return_tensors="pt").to(model.device)
 
-        # Test export here.
-        summary_ids = model.generate(
-            inputs["input_ids"],
-            attention_mask=inputs["attention_mask"],
-            num_beams=num_beams,
-            max_length=max_length,
-            early_stopping=True,
-            decoder_start_token_id=model.config.decoder_start_token_id,
-        )
-
         if not ort_sess:
+            # Test export here.
+            summary_ids = model.generate(
+                inputs["input_ids"],
+                attention_mask=inputs["attention_mask"],
+                num_beams=num_beams,
+                max_length=max_length,
+                early_stopping=True,
+                decoder_start_token_id=model.config.decoder_start_token_id,
+            )
+
             torch.onnx.export(
                 onnx_bart,
                 (
@@ -165,9 +163,6 @@ def export_and_validate_model(model, tokenizer, onnx_file_path, num_beams, max_l
 def main():
     args = parse_args()
     local_device = None
-    local_max_length = 5
-    local_num_beams = 4
-
     # Make one log on every process with the configuration for debugging.
     logging.basicConfig(
         format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
@@ -196,16 +191,12 @@ def main():
 
     model.to(local_device)
 
-    if args.max_length:
-        local_max_length = args.max_length
-
-    if args.num_beams:
-        local_num_beams = args.num_beams
-
+    local_max_length = args.max_length if args.max_length else 5
+    local_num_beams = args.num_beams if args.num_beams else 4
     if args.output_file_path:
         output_name = args.output_file_path
     else:
-        output_name = "onnx_model_{}.onnx".format(datetime.now().utcnow().microsecond)
+        output_name = f"onnx_model_{datetime.now().utcnow().microsecond}.onnx"
 
     export_and_validate_model(model, tokenizer, output_name, local_num_beams, local_max_length)
 

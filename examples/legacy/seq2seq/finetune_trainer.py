@@ -172,7 +172,7 @@ def main():
         training_args.local_rank,
         training_args.device,
         training_args.n_gpu,
-        bool(training_args.parallel_mode == ParallelMode.DISTRIBUTED),
+        training_args.parallel_mode == ParallelMode.DISTRIBUTED,
         training_args.fp16,
     )
     transformers.utils.logging.enable_default_handler()
